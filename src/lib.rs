@@ -22,6 +22,7 @@
 
 pub mod faddeeva {
 
+    use num_traits::Float;
     use num::complex::Complex;
     use std::f64::consts::PI;
     type Complex64 = Complex<f64>;
@@ -265,7 +266,7 @@ pub mod faddeeva {
 
 
 
-    trait Faddeeva {
+    trait FaddeevaReal {
         fn erfcx(self) -> Self;
         fn erf(self) -> Self;
         fn w_im(self) -> Self;
@@ -274,57 +275,60 @@ pub mod faddeeva {
         fn dawson(self) -> Self;
     }
 
-    impl Faddeeva for f64 {
+    impl FaddeevaReal for f64 {
 
-        /// Compute erfcx(x) = exp(x^2) erfc(x) function, for real x
-        /// This function combines a few different ideas.
-        /// First, for x > 50, it uses a continued-fraction expansion (same as for the Faddeeva function,
-        /// but with algebraic simplifications for z=i*x).
-        /// Second, for 0 <= x <= 50, it uses Chebyshev polynomial approximations, but with two twists:
-        ///   a) It maps x to y = 4 / (4+x) in [0,1].  This simple transformation, inspired by a similar
-        ///      transformation in the octave-forge/specfun erfcx by Soren Hauberg, results in much faster
-        ///      Chebyshev convergence than other simple transformations I have examined.
-        ///   b) Instead of using a single Chebyshev polynomial for the entire [0,1] y interval,
-        ///      we break the interval up into 100 equal subintervals, with a switch/lookup table,
-        ///      and use much lower degree Chebyshev polynomials in each subinterval. This greatly
-        ///      improves performance in my tests.
-        ///
-        /// For x < 0, we use the relationship erfcx(-x) = 2 exp(x^2) - erfc(x), with the usual checks
-        /// for overflow etcetera.
-        ///
-        /// Performance-wise, it seems to be substantially faster than either the SLATEC DERFC function
-        /// (or an erfcx function derived therefrom) or Cody's CALERF function (from netlib.org/specfun),
-        /// while retaining near machine precision in accuracy.
-        ///
+        // Compute erfcx(x) = exp(x^2) erfc(x) function, for real x
+        // This function combines a few different ideas.
+        // First, for x > 50, it uses a continued-fraction expansion (same as for the Faddeeva function,
+        // but with algebraic simplifications for z=i*x).
+        // Second, for 0 <= x <= 50, it uses Chebyshev polynomial approximations, but with two twists:
+        //   a) It maps x to y = 4 / (4+x) in [0,1].  This simple transformation, inspired by a similar
+        //      transformation in the octave-forge/specfun erfcx by Soren Hauberg, results in much faster
+        //      Chebyshev convergence than other simple transformations I have examined.
+        //   b) Instead of using a single Chebyshev polynomial for the entire [0,1] y interval,
+        //      we break the interval up into 100 equal subintervals, with a switch/lookup table,
+        //      and use much lower degree Chebyshev polynomials in each subinterval. This greatly
+        //      improves performance in my tests.
+        //
+        // For x < 0, we use the relationship erfcx(-x) = 2 exp(x^2) - erfc(x), with the usual checks
+        // for overflow etcetera.
+        //
+        // Performance-wise, it seems to be substantially faster than either the SLATEC DERFC function
+        // (or an erfcx function derived therefrom) or Cody's CALERF function (from netlib.org/specfun),
+        // while retaining near machine precision in accuracy.
+        //
         fn erfcx(self) -> Self {
             if self >= 0.0 {
                 if self > 50.0 {
                     // continued-fraction expansion is faster
-                    let ispi: Self = 0.56418958354775628694807945156; // 1 / sqrt(pi)
+                    const ISPI: f64 = 0.56418958354775628694807945156;                // 1 / sqrt(pi)
                     if self > 5.0e7 {
                         // 1-term expansion, important to avoid overflow
-                        ispi / self
+                        return ISPI / self;
                     } else {
                         //  5-term expansion (rely on compiler for CSE), simplified from:
                         //  ispi / (x+0.5/(x+1/(x+1.5/(x+2/x))))  */
-                        ispi * ((self * self) * (self * self + 4.5) + 2.0)
-                            / (self * ((self * self) * (self * self + 5.0) + 3.75))
+                        let selfsqr = self*self;
+                        return ISPI * (selfsqr * (selfsqr + 4.5) + 2.0) / (self * (selfsqr * (selfsqr + 5.0) + 3.75));
                     }
                 } else {
-                    erfcx_y100(400.0 / (4.0 + self))
+                    return erfcx_y100(400.0 / (4.0 + self));
                 }
             } else {
                 if self < -26.7 {
-                    Self::MAX
+                    return 2.0 * Self::MAX;       // Mimicking HUGE_VAL in C++: a value larger than what can be represented with Self.
                 } else {
                     if self < -6.1 {
-                        2.0 * (self * self).exp()
+                        return 2.0 * (self * self).exp();
                     } else {
-                        2.0 * (self * self).exp() - erfcx_y100(400.0 / (4.0 - self))
+                        return 2.0 * (self * self).exp() - erfcx_y100(400.0 / (4.0 - self));
                     }
                 }
             }
         }
+
+
+
 
         /// Some comment
         ///
@@ -356,6 +360,10 @@ pub mod faddeeva {
             }
         }
 
+
+
+
+
         /// Compute a scaled Dawson integral
         ///        w_im(x) = 2*Dawson(x)/sqrt(pi)
         /// equivalent to the imaginary part w(x) for real x.
@@ -366,15 +374,16 @@ pub mod faddeeva {
             if self >= 0.0 {
                 if self > 45.0 {
                     // continued-fraction eselfpansion is faster
-                    let ispi: f64 = 0.56418958354775628694807945156; // 1 / sqrt(pi)
+                    const ISPI: f64 = 0.56418958354775628694807945156;             // 1 / sqrt(pi)
                     if self > 5e7 {
                         // 1-term expansion, important to avoid overflow
-                        return ispi / self;
+                        return ISPI / self;
                     } else {
                         // 5-term expansion (rely on compiler for CSE), simplified from:
                         //       ispi / (x-0.5/(x-1/(x-1.5/(x-2/x))))
-                        return ispi * ((self * self) * (self * self - 4.5) + 2.0)
-                            / (self * ((self * self) * (self * self - 5.0) + 3.75));
+                        let selfsqr = self * self;
+                        return ISPI * (selfsqr * (selfsqr - 4.5) + 2.0)
+                            / (self * (selfsqr * (selfsqr - 5.0) + 3.75));
                     }
                 } else {
                     return w_im_y100(100.0 / (1.0 + self), self);
@@ -383,21 +392,26 @@ pub mod faddeeva {
                 // = -w_im(-x)
                 if self < -45.0 {
                     // continued-fraction expansion is faster
-                    let ispi = 0.56418958354775628694807945156; // 1 / sqrt(pi)
+                    const ISPI: f64 = 0.56418958354775628694807945156;             // 1 / sqrt(pi)
                     if self < -5e7 {
                         // 1-term expansion, important to avoid overflow
-                        return ispi / self;
+                        return ISPI / self;
                     } else {
                         // 5-term expansion (rely on compiler for CSE), simplified from:
                         //       ispi / (self-0.5/(self-1/(self-1.5/(self-2/self))))
-                        return ispi * ((self * self) * (self * self - 4.5) + 2.0)
-                            / (self * ((self * self) * (self * self - 5.0) + 3.75));
+                        let selfsqr = self * self;
+                        return ISPI * (selfsqr * (selfsqr - 4.5) + 2.0)
+                            / (self * (selfsqr * (selfsqr - 5.0) + 3.75));
                     }
                 } else {
                     return -w_im_y100(100.0 / (1.0 - self), -self);
                 }
             }
         }
+
+
+
+
 
         /// Compute erfi(x) = -i erf(ix)
         ///
@@ -416,7 +430,7 @@ pub mod faddeeva {
         /// Compute erfc(x) = 1 - erf(x)
         ///
         fn erfc(self) -> Self {
-            if self * self > 750.0 {
+            if self * self > 750.0 {                                                // underflow
                 if self >= 0.0 {
                     return 0.0;
                 } else {
@@ -434,32 +448,52 @@ pub mod faddeeva {
         /// Compute Dawson(x) = sqrt(pi)/2  *  exp(-x^2) * erfi(x)
         ///
         fn dawson(self) -> Self {
-            let spi2 = 0.8862269254527580136490837416705725913990; // sqrt(pi)/2
-            return spi2 * self.w_im();
+            const SPI2: f64 = 0.8862269254527580136490837416705725913990;           // sqrt(pi)/2
+            return SPI2 * self.w_im();
         }
+
     } // end implementation of trait Faddeeva for type f64
 
 
 
 
 
+    // At the time of this writing the complex exp() function in the num library is not able to take into acount
+    // inf or nans in its argument. So make a custom function for this.
 
-
-    // TODO: include version that can handle inf and nan
-    fn exp(z: Complex64) -> Complex64 {
-        Complex64::new(0.0, 0.0)
+    trait ExpAllowingForNanAndInf {
+        fn cexp(self) -> Self;
     }
 
-    // Returns a value whose absolute value matches that of x, but whose sign bit matches that of y.
-    // Some day copysign will appear in std Rust, but not just yet.
-    #[inline]
-    fn copysign(x: f64, y: f64) -> f64 {
-        if (x < 0.0) != (y < 0.0) {
-            return -x;
-        } else {
-            return x;
+    impl<T: Float> ExpAllowingForNanAndInf for Complex<T> {
+
+        fn cexp(self) -> Self {
+
+            // Treat the corner cases +∞, -∞, and NaN
+            let mut im = self.im;
+            if self.re.is_infinite() {
+                if self.re < T::zero() {
+                    if !self.im.is_finite() {
+                        im = T::one();
+                    }
+                } else {
+                    if self.im == T::zero() || !self.im.is_finite() {
+                        if self.im.is_infinite() {
+                            im = T::nan();
+                        }
+                        return Self::new(self.re, im);
+                    }
+                }
+            } else if self.re.is_nan() && self.im == T::zero() {
+                return self;
+            }
+
+            let a = self.re.exp();
+            Self::new(a * im.cos(), a * im.sin())
         }
     }
+
+
 
     // Compute sinc(x) = sin(x)/x, given both x and sin(x)
     // (since we only use this in cases where sin(x) has already been computed)
@@ -506,7 +540,7 @@ pub mod faddeeva {
 
 
 
-    pub fn w(z: Complex64, mut relerr: f64) -> Complex64 {
+    pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
         if z.re == 0.0 {
             return Complex64::new((z.im).erfcx(), z.re); // give correct sign of 0 in w.im
         } else if z.im == 0.0 {
@@ -613,7 +647,7 @@ pub mod faddeeva {
 
             if y < 0.0 {
                 // use w(z) = 2.0*exp(-z*z) - w(-z), but be careful of overflow in exp(-z*z) = exp(-(xs*xs-ya*ya) -2*i*xs*ya)
-                return 2.0 * Complex64::new((ya - xs) * (xs + ya), 2.0 * xs * y).exp() - ret;
+                return 2.0 * Complex64::new((ya - xs) * (xs + ya), 2.0 * xs * y).cexp() - ret;
             } else {
                 return ret;
             }
@@ -804,7 +838,7 @@ pub mod faddeeva {
                     sum3 += tp + tm;
                     sum5 += a * (np * tp + nm * tm);
                     if a * (np * tp + nm * tm) < relerr * sum5 {
-                        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * copysign(sum5 - sum4, z.re));
+                        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * (sum5 - sum4).copysign(z.re) );
                     }
                     dn += 1;
                 }
@@ -817,13 +851,13 @@ pub mod faddeeva {
                     sum3 += tp;
                     sum5 += a * np * tp;
                     if a * np * tp < relerr * sum5 {
-                        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * copysign(sum5 - sum4, z.re));
+                        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * (sum5 - sum4).copysign(z.re) );
                     }
                 }
             }
         }
 
-        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * copysign(sum5 - sum4, z.re));
+        return ret + Complex64::new( (0.5 * c) * y * (sum2 + sum3), (0.5 * c) * (sum5 - sum4).copysign(z.re) );
     }
 
 
@@ -835,8 +869,8 @@ pub mod faddeeva {
 
     /// compute erfcx(z) = exp(z^2) erfz(z)
     ///
-    pub fn erfcx(z: Complex64, relerr: f64) -> Complex64 {
-        w(Complex64::new(-z.im, z.re), relerr)
+    pub fn erfcx_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
+        w_with_relerror(Complex64::new(-z.im, z.re), relerr)
     }
 
 
@@ -847,7 +881,7 @@ pub mod faddeeva {
 
     /// compute the error function erf(z)
     ///
-    pub fn erf(z: Complex64, relerr: f64) -> Complex64 {
+    pub fn erf_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
         let x = z.re;
         let y = z.im;
 
@@ -873,8 +907,8 @@ pub mod faddeeva {
             return Complex64::new(x, imag);
         }
 
-        let m_re_z2 = (y - x) * (x + y); // Re(-z^2), being careful of overflow
-        let m_im_z2 = -2.0 * x * y; // Im(-z^2)
+        let m_re_z2: f64 = (y - x) * (x + y);                    // Re(-z^2), being careful of overflow
+        let m_im_z2: f64 = -2.0 * x * y;                         // Im(-z^2)
         if m_re_z2 < -750.0 {
             // underflow
             if x >= 0.0 {
@@ -892,7 +926,7 @@ pub mod faddeeva {
                     // Use Taylor series for small |z|, to avoid cancellation inaccuracy
                     //   erf(z) = 2/sqrt(pi) * z * (1 - z^2/3 + z^4/10 - z^6/42 + z^8/216 + ...)
 
-                    let mz2: Complex64 = Complex64::new(m_re_z2, m_im_z2); // -z^2
+                    let mz2 = Complex64::new(m_re_z2, m_im_z2); // -z^2
                     return z * (1.1283791670955125739 + mz2 * (0.37612638903183752464 + mz2 * (0.11283791670955125739 + mz2 * (0.026866170645131251760 + mz2 * 0.0052239776254421878422))));
                 } else if m_im_z2.abs() < 5.0e-3 && x < 5.0e-3 {
                     // For small |x| and small |xy|, use Taylor series to avoid cancellation inaccuracy:
@@ -907,29 +941,16 @@ pub mod faddeeva {
                     let y2: f64 = y * y;
                     let expy2: f64 = y2.exp();
                     return Complex64::new(
-                        expy2
-                            * x
-                            * (1.1283791670955125739
+                        expy2 * x * (1.1283791670955125739
                                 - x2 * (0.37612638903183752464 + 0.75225277806367504925 * y2)
-                                + x2 * x2
-                                    * (0.11283791670955125739
-                                        + y2 * (0.45135166683820502956
-                                            + 0.15045055561273500986 * y2))),
-                        expy2
-                            * (y.w_im()
-                                - x2 * y
-                                    * (1.1283791670955125739
-                                        - x2 * (0.56418958354775628695
-                                            + 0.37612638903183752464 * y2))),
+                                + x2 * x2 * (0.11283791670955125739 + y2 * (0.45135166683820502956 + 0.15045055561273500986 * y2))),
+                        expy2 * (y.w_im() - x2 * y * (1.1283791670955125739 - x2 * (0.56418958354775628695 + 0.37612638903183752464 * y2)))
                     );
                 }
             }
 
             // Don't use the complex exp function, since that will produce spurious NaN values when multiplying w in an overflow situation.
-            return 1.0
-                - m_re_z2.exp()
-                    * Complex64::new(m_im_z2.cos(), m_im_z2.sin())
-                    * w(Complex64::new(-y, x), relerr);
+            return 1.0 - m_re_z2.exp() * Complex64::new(m_im_z2.cos(), m_im_z2.sin()) * w_with_relerror(Complex64::new(-y, x), relerr);
         } else {
             // x < 0
             if x > -8.0e-2 {
@@ -953,20 +974,10 @@ pub mod faddeeva {
                     let y2: f64 = y * y;
                     let expy2: f64 = y2.exp();
                     return Complex64::new(
-                        expy2
-                            * x
-                            * (1.1283791670955125739
+                        expy2 * x * (1.1283791670955125739
                                 - x2 * (0.37612638903183752464 + 0.75225277806367504925 * y2)
-                                + x2 * x2
-                                    * (0.11283791670955125739
-                                        + y2 * (0.45135166683820502956
-                                            + 0.15045055561273500986 * y2))),
-                        expy2
-                            * (y.w_im()
-                                - x2 * y
-                                    * (1.1283791670955125739
-                                        - x2 * (0.56418958354775628695
-                                            + 0.37612638903183752464 * y2))),
+                                + x2 * x2 * (0.11283791670955125739 + y2 * (0.45135166683820502956 + 0.15045055561273500986 * y2))),
+                        expy2 * (y.w_im() - x2 * y * (1.1283791670955125739 - x2 * (0.56418958354775628695 + 0.37612638903183752464 * y2)))
                     );
                 }
             } else if x.is_nan() {
@@ -978,7 +989,11 @@ pub mod faddeeva {
             }
 
             // Don't use the complex exp function, since that will produce spurious NaN values when multiplying w in an overflow situation.
-            return m_re_z2.exp() * Complex64::new(m_im_z2.cos(), m_im_z2.sin()) * w(Complex64::new(y, -x), relerr) - 1.0;
+            // Although in principle complex multiplication should be associative, in numerical applications this is not necessarily the case.
+            // In the following I therefore deliberately write a * (b * c) rather than a * b * c. If not, one of the test cases will break
+            // and return (NaN, -Inf) rather than (-Inf, -Inf).
+ 
+            m_re_z2.exp() * (Complex64::new(m_im_z2.cos(), m_im_z2.sin()) * w_with_relerror(Complex64::new(y, -x), relerr)) - 1.0
         }
     }
 
@@ -989,8 +1004,8 @@ pub mod faddeeva {
 
     /// erfi(z) = -i erf(iz)
     ///
-    pub fn erfi(z: Complex64, relerr: f64) -> Complex64 {
-        let e: Complex64 = erf(Complex64::new(-z.im, z.re), relerr);
+    pub fn erfi_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
+        let e: Complex64 = erf_with_relerror(Complex64::new(-z.im, z.re), relerr);
         Complex64::new(e.im, -e.re)
     }
 
@@ -1000,7 +1015,7 @@ pub mod faddeeva {
 
     /// erfc(z) = 1 - erf(z)
     ///
-    pub fn erfc(z: Complex64, relerr: f64) -> Complex64 {
+    pub fn erfc_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
         let x: f64 = z.re;
         let y: f64 = z.im;
 
@@ -1029,15 +1044,15 @@ pub mod faddeeva {
                 }
             } else {
                 if x >= 0.0 {
-                    return Complex64::new((x * x).exp() * x.erfcx(), -y);
+                    return Complex64::new((-x*x).exp() * x.erfcx(), -y);
                 } else {
-                    return Complex64::new(2.0 - (x * x).exp() * (-x).erfcx(), -y);
+                    return Complex64::new(2.0 - (-x*x).exp() * (-x).erfcx(), -y);
                 }
             }
         }
 
-        let m_re_z2: f64 = (y - x) * (x + y); // Re(-z^2), being careful of overflow
-        let m_im_z2: f64 = -2.0 * x * y; // Im(-z^2)
+        let m_re_z2: f64 = (y - x) * (x + y);      // Re(-z^2), being careful of overflow
+        let m_im_z2: f64 = -2.0 * x * y;           // Im(-z^2)
         if m_re_z2 < -750.0 {
             // underflow
             if x >= 0.0 {
@@ -1048,9 +1063,9 @@ pub mod faddeeva {
         }
 
         if x >= 0.0 {
-            return Complex64::new(m_re_z2, m_im_z2).exp() * w(Complex64::new(-y, x), relerr);
+            return Complex64::new(m_re_z2, m_im_z2).cexp() * w_with_relerror(Complex64::new(-y, x), relerr);
         } else {
-            return 2.0 - Complex64::new(m_re_z2, m_im_z2).exp() * w(Complex64::new(y, -x), relerr);
+            return 2.0 - Complex64::new(m_re_z2, m_im_z2).cexp() * w_with_relerror(Complex64::new(y, -x), relerr);
         }
     }
 
@@ -1060,7 +1075,7 @@ pub mod faddeeva {
 
     /// dawson(z) = sqrt(pi)/2  *  exp(-z^2) * erfi(z)
     ///
-    pub fn dawson(z: Complex64, relerr: f64) -> Complex64 {
+    pub fn dawson_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
         const SPI2: f64 = 0.8862269254527580136490837416705725913990; // sqrt(pi)/2
         let x = z.re;
         let y = z.im;
@@ -1086,9 +1101,9 @@ pub mod faddeeva {
             }
         }
 
-        let m_re_z2 = (y - x) * (x + y); // Re(-z^2), being careful of overflow
-        let m_im_z2 = -2.0 * x * y; // Im(-z^2)
-        let mz2 = Complex64::new(m_re_z2, m_im_z2); // -z^2
+        let m_re_z2 = (y - x) * (x + y);             // Re(-z^2), being careful of overflow
+        let m_im_z2 = -2.0 * x * y;                  // Im(-z^2)
+        let mz2 = Complex64::new(m_re_z2, m_im_z2);  // -z^2
 
         // Handle positive and negative x via different formulas, using the mirror symmetries of w, to avoid overflow/underflow
         // problems from multiplying exponentially large and small quantities.
@@ -1098,7 +1113,7 @@ pub mod faddeeva {
                 if x.abs() < 5e-3 {
                     // Use Taylor series for small |z|, to avoid cancellation inaccuracy: dawson(z) = z - 2/3 z^3 + 4/15 z^5 + ...
                     return z * (1. + mz2 * (0.6666666666666666666666666666666666666667 + mz2 * 0.2666666666666666666666666666666666666667));
-                } else if m_im_z2 < 5.0e-3 {
+                } else if m_im_z2.abs() < 5.0e-3 {
                     // (**) For small |y| and small |xy|, use Taylor series to avoid cancellation inaccuracy:
                     //     dawson(x + iy) = D + y^2 (D + x - 2Dx^2) + y^4 (D/2 + 5x/6 - 2Dx^2 - x^3/3 + 2Dx^4/3)
                     //                        + iy [ (1-2Dx) + 2/3 y^2 (1 - 3Dx - x^2 + 2Dx^3)
@@ -1162,7 +1177,7 @@ pub mod faddeeva {
                     }
                 }
             }
-            let res: Complex64 = mz2.exp() - w(z, relerr);
+            let res: Complex64 = mz2.cexp() - w_with_relerror(z, relerr);
             return SPI2 * Complex64::new(-res.im, res.re);
         } else {
             // y < 0
@@ -1223,10 +1238,52 @@ pub mod faddeeva {
                     return Complex64::new(f64::NAN, f64::NAN);
                 }
             }
-            let res: Complex64 = w(-z, relerr) - mz2.exp();
+            let res: Complex64 = w_with_relerror(-z, relerr) - mz2.cexp();
             return SPI2 * Complex64::new(-res.im, res.re);
         }
     }
+
+
+
+
+
+    trait FaddeevaComplex {
+        fn erfcx(self) -> Self;
+        fn erf(self) -> Self;
+        fn w(self) -> Self;
+        fn erfi(self) -> Self;      
+        fn erfc(self) -> Self;
+        fn dawson(self) -> Self;
+    }
+
+    impl FaddeevaComplex for Complex64 {
+
+        fn erfcx(self) -> Self {
+            erfcx_with_relerror(self, 0.0)
+        }
+
+        fn erf(self) -> Self {
+            erf_with_relerror(self, 0.0)
+        }
+
+        fn w(self) -> Self {
+            w_with_relerror(self, 0.0)
+        }
+
+        fn erfi(self) -> Self {
+            erfi_with_relerror(self, 0.0)
+        }
+
+        fn erfc(self) -> Self {
+            erfc_with_relerror(self, 0.0)
+        }
+
+        fn dawson(self) -> Self {
+            dawson_with_relerror(self, 0.0)
+        }
+    }
+
+
 
 
 
@@ -1263,6 +1320,8 @@ pub mod faddeeva {
                 return ((b - a) / a).abs();
             }
         }
+
+
 
         #[test]
         fn test_w_complex() {
@@ -1331,7 +1390,7 @@ pub mod faddeeva {
             // w(z) computed with WolframAlpha. WolframAlpha is problematic for some of the above inputs, so I had to use the
             // continued-fraction expansion in WolframAlpha in some cases, or switch to Maple
 
-            let expected_wz: [Complex64; 57] = [
+            let expected_w: [Complex64; 57] = [
                 Complex64::new( -3.78270245518980507452677445620103199303131110e-7, 0.000903861276433172057331093754199933411710053155),
                 Complex64::new( 0.1764906227004816847297495349730234591778719532788, -0.02146550539468457616788719893991501311573031095617),
                 Complex64::new( 0.2410250715772692146133539023007113781272362309451, 0.06087579663428089745895459735240964093522265589350),
@@ -1393,22 +1452,561 @@ pub mod faddeeva {
 
             let tolerance = 1.0e-13;
             for n in 0..z.len() {
-                let computed_wz = w(z[n], 0.);
-                println!(
-                    "{}: z={:?} --> w(z) computed: {:?}  vs expected:  {:?}",
-                    n, z[n], computed_wz, expected_wz[n]
-                );
-                let relative_error_re = relerr(computed_wz.re, expected_wz[n].re);
-                let relative_error_im = relerr(computed_wz.im, expected_wz[n].im);
+                let computed_w = z[n].w();
+                // println!( "{}: z={:?} --> w(z) computed: {:?}  vs expected:  {:?}", n, z[n], computed_w, expected_w[n]);
+                let relative_error_re = relerr(computed_w.re, expected_w[n].re);
+                let relative_error_im = relerr(computed_w.im, expected_w[n].im);
                 assert!(relative_error_re < tolerance);
                 assert!(relative_error_im < tolerance);
             }
+        }
+
+
+
+        #[test]
+        fn test_erf_complex() {
+
+            let z: [Complex64; 41] = [
+                Complex64::new(1.0, 2.0),
+                Complex64::new(-1.0, 2.0),
+                Complex64::new(1.0, -2.0),
+                Complex64::new(-1.0, -2.0),
+                Complex64::new(9.0, -28.0),
+                Complex64::new(21.0, -33.0),
+                Complex64::new(1.0e3, 1.0e3),
+                Complex64::new(-3001.0, -1000.0),
+                Complex64::new(1.0e160, -1.0e159),
+                Complex64::new(5.1e-3, 1.0e-8),
+                Complex64::new(-4.9e-3, 4.95e-3),
+                Complex64::new(4.9e-3, 0.5),
+                Complex64::new(4.9e-4, -0.5e1),
+                Complex64::new(-4.9e-5, -0.5e2),
+                Complex64::new(5.1e-3, 0.5),
+                Complex64::new(5.1e-4, -0.5e1),
+                Complex64::new(-5.1e-5, -0.5e2),
+                Complex64::new(1e-6, 2e-6),
+                Complex64::new(0.0, 2e-6),
+                Complex64::new(0.0, 2.0),
+                Complex64::new(0.0, 20.0),
+                Complex64::new(0.0, 200.0),
+                Complex64::new(f64::INFINITY, 0.0),
+                Complex64::new(f64::NEG_INFINITY, 0.0),
+                Complex64::new(0.0, f64::INFINITY),
+                Complex64::new(0.0, f64::NEG_INFINITY),
+                Complex64::new(f64::INFINITY, f64::INFINITY),
+                Complex64::new(f64::INFINITY, f64::NEG_INFINITY),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, 0.0),
+                Complex64::new(0.0, f64::NAN),
+                Complex64::new(f64::NAN, f64::INFINITY),
+                Complex64::new(f64::INFINITY, f64::NAN),
+                Complex64::new(1e-3, f64::NAN),
+                Complex64::new(7e-2, 7e-2),
+                Complex64::new(7e-2, -7e-4),
+                Complex64::new(-9e-2, 7e-4),
+                Complex64::new(-9e-2, 9e-2),
+                Complex64::new(-7e-4, 9e-2),
+                Complex64::new(7e-2, 0.9e-2),
+                Complex64::new(7e-2, 1.1e-2)
+            ];
+            
+            let expected_erf: [Complex64; 41] = [
+                Complex64::new(-0.5366435657785650339917955593141927494421, -5.049143703447034669543036958614140565553),
+                Complex64::new(0.5366435657785650339917955593141927494421, -5.049143703447034669543036958614140565553),
+                Complex64::new(-0.5366435657785650339917955593141927494421, 5.049143703447034669543036958614140565553),
+                Complex64::new(0.5366435657785650339917955593141927494421, 5.049143703447034669543036958614140565553),
+                Complex64::new(0.3359473673830576996788000505817956637777e304, -0.1999896139679880888755589794455069208455e304),
+                Complex64::new(0.3584459971462946066523939204836760283645e278, 0.3818954885257184373734213077678011282505e280),
+                Complex64::new(0.9996020422657148639102150147542224526887, 0.00002801044116908227889681753993542916894856),
+                Complex64::new(-1.0, 0.0),
+                Complex64::new(1.0, 0.0),
+                Complex64::new(0.005754683859034800134412990541076554934877, 0.1128349818335058741511924929801267822634e-7),
+                Complex64::new(-0.005529149142341821193633460286828381876955, 0.005585388387864706679609092447916333443570),
+                Complex64::new(0.007099365669981359632319829148438283865814, 0.6149347012854211635026981277569074001219),
+                Complex64::new(0.3981176338702323417718189922039863062440e8, -0.8298176341665249121085423917575122140650e10),
+                Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+                Complex64::new(0.007389128308257135427153919483147229573895, 0.6149332524601658796226417164791221815139),
+                Complex64::new(0.4143671923267934479245651547534414976991e8, -0.8298168216818314211557046346850921446950e10),
+                Complex64::new(f64::NEG_INFINITY, f64::NEG_INFINITY),
+                Complex64::new(0.1128379167099649964175513742247082845155e-5, 0.2256758334191777400570377193451519478895e-5),
+                Complex64::new(0.0, 0.2256758334194034158904576117253481476197e-5),
+                Complex64::new(0.0, 18.56480241457555259870429191324101719886),
+                Complex64::new(0.0, 0.1474797539628786202447733153131835124599e173),
+                Complex64::new(0.0, f64::INFINITY),
+                Complex64::new(1.0,0.0),
+                Complex64::new(-1.0,0.0),
+                Complex64::new(0.0,f64::INFINITY),
+                Complex64::new(0.0,f64::NEG_INFINITY),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN,0.0),
+                Complex64::new(0.0,f64::NAN),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(0.07924380404615782687930591956705225541145, 0.07872776218046681145537914954027729115247),
+                Complex64::new(0.07885775828512276968931773651224684454495, -0.0007860046704118224342390725280161272277506),
+                Complex64::new(-0.1012806432747198859687963080684978759881, 0.0007834934747022035607566216654982820299469),
+                Complex64::new(-0.1020998418798097910247132140051062512527, 0.1010030778892310851309082083238896270340),
+                Complex64::new(-0.0007962891763147907785684591823889484764272, 0.1018289385936278171741809237435404896152),
+                Complex64::new(0.07886408666470478681566329888615410479530, 0.01010604288780868961492224347707949372245),
+                Complex64::new(0.07886723099940260286824654364807981336591, 0.01235199327873258197931147306290916629654)
+            ];
+
+            let tolerance = 1.0e-13;
+            for n in 0..z.len() {
+                let computed_erf = z[n].erf();
+                let relative_error_re = relerr(computed_erf.re, expected_erf[n].re);
+                let relative_error_im = relerr(computed_erf.im, expected_erf[n].im);
+                assert!(relative_error_re < tolerance);
+                assert!(relative_error_im < tolerance);
+            }
+        }
+
+
+
+        #[test]
+        fn test_erf_real() {
+            let tolerance = 1.0e-13;
+            for i in 0..10000 {
+                let x = 10.0_f64.powf(-300.0 + i as f64 * 600.0 / (10000.0 - 1.0));
+                let computed_erf = x.erf();
+                let expected_erf = Complex64::new(x, x*1.0e-20).erf().re;
+                // println!( "{}: x={} --> erf(x) computed: {}  vs expected:  {}", i, x, computed_erf, expected_erf);
+                let relative_error = relerr(computed_erf, expected_erf);
+                assert!(relative_error < tolerance);
+
+                let computed_erf = (-x).erf();
+                let expected_erf = erf_with_relerror(Complex64::new(-x, x*1.0e-20), 0.0).re;
+                // println!( "{}: x={} --> erf(x) computed: {}  vs expected:  {}", i, -x, computed_erf, expected_erf);
+                let relative_error = relerr(computed_erf, expected_erf);
+                assert!(relative_error < tolerance);
+            }
+
+            let x = f64::INFINITY;
+            let computed_erf = x.erf();
+            let expected_erf = erf_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erf, expected_erf);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NEG_INFINITY;
+            let computed_erf = x.erf();
+            let expected_erf = erf_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erf, expected_erf);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NAN;
+            let computed_erf = x.erf();
+            let expected_erf = erf_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erf, expected_erf);
+            assert!(relative_error < tolerance);
+        }
+
+
+        #[test]
+        fn test_erfi_complex() {
+            let tolerance = 1.0e-13;
+            let z = Complex64::new(1.234, 0.5678);
+            let computed_erfi = erfi_with_relerror(z, 0.0);
+            let expected_erfi = Complex64::new(1.081032284405373149432716643834106923212, 1.926775520840916645838949402886591180834);
+            let relative_error_re = relerr(computed_erfi.re, expected_erfi.re);
+            let relative_error_im = relerr(computed_erfi.im, expected_erfi.im);
+            assert!(relative_error_re < tolerance);
+            assert!(relative_error_im < tolerance);
+        }
+
+
+        #[test]
+        fn test_erfi_real() {
+            let tolerance = 1.0e-13;
+            for i in 0..10000 {
+                let x = 10.0_f64.powf(-300.0 + i as f64 * 600.0 / (10000.0 - 1.0));
+                let computed_erfi = x.erfi();
+                let expected_erfi = erfi_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+                let relative_error = relerr(computed_erfi, expected_erfi);
+                assert!(relative_error < tolerance);
+
+                let computed_erfi = (-x).erfi();
+                let expected_erfi = erfi_with_relerror(Complex64::new(-x, 0.0), 0.0).re;
+                // println!( "{}: x={} --> erfi(x) computed: {}  vs expected:  {}", i, -x, computed_erfi, expected_erfi);
+                let relative_error = relerr(computed_erfi, expected_erfi);
+                assert!(relative_error < tolerance);
+            }
+
+            let x = f64::INFINITY;
+            let computed_erfi = x.erfi();
+            let expected_erfi = erfi_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfi, expected_erfi);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NEG_INFINITY;
+            let computed_erfi = x.erfi();
+            let expected_erfi = erfi_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfi, expected_erfi);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NAN;
+            let computed_erfi = x.erfi();
+            let expected_erfi = erfi_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfi, expected_erfi);
+            assert!(relative_error < tolerance);
+        }
+
+
+
+        #[test]
+        fn test_erfcx_complex() {
+            let tolerance = 1.0e-13;
+            let z = Complex64::new(1.234, 0.5678);
+            let computed_erfcx = erfcx_with_relerror(z, 0.0);
+            let expected_erfcx = Complex64::new(0.3382187479799972294747793561190487832579, -0.1116077470811648467464927471872945833154);
+            let relative_error_re = relerr(computed_erfcx.re, expected_erfcx.re);
+            let relative_error_im = relerr(computed_erfcx.im, expected_erfcx.im);
+            assert!(relative_error_re < tolerance);
+            assert!(relative_error_im < tolerance);
+        }
+
+
+        #[test]
+        fn test_erfcx_real() {
+            let tolerance = 1.0e-13;
+            for i in 0..10000 {
+                let x = 10.0_f64.powf(-300.0 + i as f64 * 600.0 / (10000.0 - 1.0));
+                let computed_erfcx = x.erfcx();
+                let expected_erfcx = erfcx_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+                let relative_error = relerr(computed_erfcx, expected_erfcx);
+                if relative_error >= tolerance {
+                    println!( "erfcx_real: {}: x={} --> erfcx(x) computed: {}  vs expected:  {}", i, x, computed_erfcx, expected_erfcx);
+                }
+                assert!(relative_error < tolerance);
+
+                let computed_erfcx = (-x).erfcx();
+                let expected_erfcx = erfcx_with_relerror(Complex64::new(-x, 0.0), 0.0).re;
+                let relative_error = relerr(computed_erfcx, expected_erfcx);
+                if relative_error >= tolerance {
+                    println!( "erfcx_real: {}: x={} --> erfcx(x) computed: {}  vs expected:  {}", i, -x, computed_erfcx, expected_erfcx);
+                }
+                assert!(relative_error < tolerance);
+            }
+
+            let x = f64::INFINITY;
+            let computed_erfcx = x.erfcx();
+            let expected_erfcx = erfcx_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            println!( "x={} --> erfcx(x) computed: {}  vs expected:  {}", x, computed_erfcx, expected_erfcx);
+            let relative_error = relerr(computed_erfcx, expected_erfcx);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NEG_INFINITY;
+            let computed_erfcx = x.erfcx();
+            let expected_erfcx = erfcx_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            println!( "x={} --> erfcx(x) computed: {}  vs expected:  {}", x, computed_erfcx, expected_erfcx);
+            let relative_error = relerr(computed_erfcx, expected_erfcx);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NAN;
+            let computed_erfcx = x.erfcx();
+            let expected_erfcx = erfcx_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            println!( "x={} --> erfcx(x) computed: {}  vs expected:  {}", x, computed_erfcx, expected_erfcx);
+            let relative_error = relerr(computed_erfcx, expected_erfcx);
+            assert!(relative_error < tolerance);
+        }
+
+
+
+        #[test]
+        fn test_erfc_complex() {
+
+            let z: [Complex64; 30] = [
+                Complex64::new(1.0, 2.0),
+                Complex64::new(-1.0, 2.0),
+                Complex64::new(1.0, -2.0),
+                Complex64::new(-1.0, -2.0),
+                Complex64::new(9.0, -28.0),
+                Complex64::new(21.0, -33.0),
+                Complex64::new(1.0e3, 1.0e3),
+                Complex64::new(-3001.0, -1000.0),
+                Complex64::new(1.0e160, -1.0e159),
+                Complex64::new(5.1e-3, 1.0e-8),
+                Complex64::new(0.0, 2.0e-6),
+                Complex64::new(0.0, 2.0),
+                Complex64::new(0.0, 20.0),
+                Complex64::new(0.0, 200.0),
+                Complex64::new(2.0e-6, 0.0),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(20.0, 0.0),
+                Complex64::new(200.0, 0.0),
+                Complex64::new(f64::INFINITY, 0.0),
+                Complex64::new(f64::NEG_INFINITY, 0.0),
+                Complex64::new(0.0, f64::INFINITY),
+                Complex64::new(0.0,f64::NEG_INFINITY),
+                Complex64::new(f64::INFINITY, f64::INFINITY),
+                Complex64::new(f64::INFINITY, f64::NEG_INFINITY),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, 0.0),
+                Complex64::new(0.0, f64::NAN),
+                Complex64::new(f64::NAN, f64::INFINITY),
+                Complex64::new(f64::INFINITY, f64::NAN),
+                Complex64::new(88.0, 0.0)
+            ];
+            
+            let expected_erfc: [Complex64; 30] = [
+                Complex64::new(1.536643565778565033991795559314192749442, 5.049143703447034669543036958614140565553),
+                Complex64::new(0.4633564342214349660082044406858072505579, 5.049143703447034669543036958614140565553),
+                Complex64::new(1.536643565778565033991795559314192749442, -5.049143703447034669543036958614140565553),
+                Complex64::new(0.4633564342214349660082044406858072505579, -5.049143703447034669543036958614140565553),
+                Complex64::new(-0.3359473673830576996788000505817956637777e304, 0.1999896139679880888755589794455069208455e304),
+                Complex64::new(-0.3584459971462946066523939204836760283645e278, -0.3818954885257184373734213077678011282505e280),
+                Complex64::new(0.0003979577342851360897849852457775473112748, -0.00002801044116908227889681753993542916894856),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.9942453161409651998655870094589234450651, -0.1128349818335058741511924929801267822634e-7),
+                Complex64::new(1.0, -0.2256758334194034158904576117253481476197e-5),
+                Complex64::new(1.0, -18.56480241457555259870429191324101719886),
+                Complex64::new(1.0, -0.1474797539628786202447733153131835124599e173),
+                Complex64::new(1.0, f64::NEG_INFINITY),
+                Complex64::new(0.9999977432416658119838633199332831406314, 0.0),
+                Complex64::new(0.004677734981047265837930743632747071389108, 0.0),
+                Complex64::new(0.5395865611607900928934999167905345604088e-175, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(1.0, f64::NEG_INFINITY),
+                Complex64::new(1.0, f64::INFINITY),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, 0.0),
+                Complex64::new(1.0, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(0.0, 0.0)
+            ];
+
+            let tolerance = 1.0e-13;
+            for n in 0..z.len() {
+                let computed_erfc = erfc_with_relerror(z[n], 0.);
+                let relative_error_re = relerr(computed_erfc.re, expected_erfc[n].re);
+                let relative_error_im = relerr(computed_erfc.im, expected_erfc[n].im);
+                assert!(relative_error_re < tolerance);
+                assert!(relative_error_im < tolerance);
+            }
+        }
+
+
+
+        #[test]
+        fn test_erfc_real() {
+            let tolerance = 1.0e-13;
+            for i in 0..10000 {
+                let x = 10.0_f64.powf(-300.0 + i as f64 * 600.0 / (10000.0 - 1.0));
+                let computed_erfc = x.erfc();
+                let expected_erfc = erfc_with_relerror(Complex64::new(x, x*1.0e-20), 0.0).re;
+                // println!( "{}: x={} --> erfc(x) computed: {}  vs expected:  {}", i, x, computed_erfc, expected_erfc);
+                let relative_error = relerr(computed_erfc, expected_erfc);
+                assert!(relative_error < tolerance);
+
+                let computed_erfc = (-x).erfc();
+                let expected_erfc = erfc_with_relerror(Complex64::new(-x, x*1.0e-20), 0.0).re;
+                // println!( "{}: x={} --> erfc(x) computed: {}  vs expected:  {}", i, -x, computed_erfc, expected_erfc);
+                let relative_error = relerr(computed_erfc, expected_erfc);
+                assert!(relative_error < tolerance);
+            }
+
+            let x = f64::INFINITY;
+            let computed_erfc = x.erfc();
+            let expected_erfc = erfc_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfc, expected_erfc);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NEG_INFINITY;
+            let computed_erfc = x.erfc();
+            let expected_erfc = erfc_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfc, expected_erfc);
+            assert!(relative_error < tolerance);
+
+            let x = f64::NAN;
+            let computed_erfc = x.erfc();
+            let expected_erfc = erfc_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_erfc, expected_erfc);
+            assert!(relative_error < tolerance);
+        }
+
+
+
+        #[test]
+        fn test_dawson_complex() {
+            let z: [Complex64; 48] = [
+                Complex64::new(2.0, 1.0),
+                Complex64::new(-2.0, 1.0),
+                Complex64::new(2.0, -1.0),
+                Complex64::new(-2.0, -1.0),
+                Complex64::new(-28.0, 9.0),
+                Complex64::new(33.0, -21.0),
+                Complex64::new(1.0e3, 1.0e3),
+                Complex64::new(-1000.0, -3001.0),
+                Complex64::new(1.0e-8, 5.1e-3),
+                Complex64::new(4.95e-3, -4.9e-3),
+                Complex64::new(5.1e-3, 5.1e-3),
+                Complex64::new(0.5, 4.9e-3),
+                Complex64::new(-0.5e1, 4.9e-4),
+                Complex64::new(-0.5e2, -4.9e-5),
+                Complex64::new(0.5e3, 4.9e-6),
+                Complex64::new(0.5, 5.1e-3),
+                Complex64::new(-0.5e1, 5.1e-4),
+                Complex64::new(-0.5e2, -5.1e-5),
+                Complex64::new(1e-6, 2e-6),
+                Complex64::new(2e-6, 0.0),
+                Complex64::new(2.0, 0.0),
+                Complex64::new(20.0, 0.0),
+                Complex64::new(200.0, 0.0),
+                Complex64::new(0.0, 4.9e-3),
+                Complex64::new(0.0, -5.1e-3),
+                Complex64::new(0.0, 2e-6),
+                Complex64::new(0.0, -2.0),
+                Complex64::new(0.0, 20.0),
+                Complex64::new(0.0, -200.0),
+                Complex64::new(f64::INFINITY, 0.0),
+                Complex64::new(f64::NEG_INFINITY, 0.0),
+                Complex64::new(0.0, f64::INFINITY),
+                Complex64::new(0.0, f64::NEG_INFINITY),
+                Complex64::new(f64::INFINITY, f64::INFINITY),
+                Complex64::new(f64::INFINITY,f64::NEG_INFINITY),
+                Complex64::new(f64::NAN,f64::NAN),
+                Complex64::new(f64::NAN, 0.0),
+                Complex64::new(0.0, f64::NAN),
+                Complex64::new(f64::NAN, f64::INFINITY),
+                Complex64::new(f64::INFINITY, f64::NAN),
+                Complex64::new(39.0, 6.4e-5),
+                Complex64::new(41.0, 6.09e-5),
+                Complex64::new(4.9e7, 5.0e-11),
+                Complex64::new(5.1e7, 4.8e-11),
+                Complex64::new(1.0e9, 2.4e-12),
+                Complex64::new(1.0e11, 2.4e-14),
+                Complex64::new(1.0e13, 2.4e-16),
+                Complex64::new(1.0e300, 2.4e-303)
+            ];
+
+            let expected_dawson: [Complex64; 48] = [
+                Complex64::new(0.1635394094345355614904345232875688576839, -0.1531245755371229803585918112683241066853),
+                Complex64::new(-0.1635394094345355614904345232875688576839, -0.1531245755371229803585918112683241066853),
+                Complex64::new(0.1635394094345355614904345232875688576839, 0.1531245755371229803585918112683241066853),
+                Complex64::new(-0.1635394094345355614904345232875688576839, 0.1531245755371229803585918112683241066853),
+                Complex64::new(-0.01619082256681596362895875232699626384420, -0.005210224203359059109181555401330902819419),
+                Complex64::new(0.01078377080978103125464543240346760257008, 0.006866888783433775382193630944275682670599),
+                Complex64::new(-0.5808616819196736225612296471081337245459, 0.6688593905505562263387760667171706325749),
+                Complex64::new(f64::INFINITY, f64::NEG_INFINITY),
+                Complex64::new(0.1000052020902036118082966385855563526705e-7, 0.005100088434920073153418834680320146441685),
+                Complex64::new(0.004950156837581592745389973960217444687524, -0.004899838305155226382584756154100963570500),
+                Complex64::new(0.005100176864319675957314822982399286703798, 0.005099823128319785355949825238269336481254),
+                Complex64::new(0.4244534840871830045021143490355372016428, 0.002820278933186814021399602648373095266538),
+                Complex64::new(-0.1021340733271046543881236523269967674156, -0.00001045696456072005761498961861088944159916),
+                Complex64::new(-0.01000200120119206748855061636187197886859, 0.9805885888237419500266621041508714123763e-8),
+                Complex64::new(0.001000002000012000023960527532953151819595, -0.9800058800588007290937355024646722133204e-11),
+                Complex64::new(0.4244549085628511778373438768121222815752, 0.002935393851311701428647152230552122898291),
+                Complex64::new(-0.1021340732357117208743299813648493928105, -0.00001088377943049851799938998805451564893540),
+                Complex64::new(-0.01000200120119126652710792390331206563616, 0.1020612612857282306892368985525393707486e-7),
+                Complex64::new(0.1000000000007333333333344266666666664457e-5, 0.2000000000001333333333323199999999978819e-5),
+                Complex64::new(0.1999999999994666666666675199999999990248e-5, 0.0),
+                Complex64::new(0.3013403889237919660346644392864226952119, 0.0),
+                Complex64::new(0.02503136792640367194699495234782353186858, 0.0),
+                Complex64::new(0.002500031251171948248596912483183760683918, 0.0),
+                Complex64::new(0.0, 0.004900078433419939164774792850907128053308),
+                Complex64::new(0.0, -0.005100088434920074173454208832365950009419),
+                Complex64::new(0.0, 0.2000000000005333333333341866666666676419e-5),
+                Complex64::new(0.0, -48.16001211429122974789822893525016528191),
+                Complex64::new(0.0, 0.4627407029504443513654142715903005954668e174),
+                Complex64::new(0.0, f64::NEG_INFINITY),
+                Complex64::new(0.0, 0.0),
+                Complex64::new(-0.0, 0.0),
+                Complex64::new(0.0, f64::INFINITY),
+                Complex64::new(0.0, f64::NEG_INFINITY),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, 0.0),
+                Complex64::new(0.0, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(f64::NAN, f64::NAN),
+                Complex64::new(0.01282473148489433743567240624939698290584, -0.2105957276516618621447832572909153498104e-7),
+                Complex64::new(0.01219875253423634378984109995893708152885, -0.1813040560401824664088425926165834355953e-7),
+                Complex64::new(0.1020408163265306334945473399689037886997e-7, -0.1041232819658476285651490827866174985330e-25),
+                Complex64::new(0.9803921568627452865036825956835185367356e-8, -0.9227220299884665067601095648451913375754e-26),
+                Complex64::new(0.5000000000000000002500000000000000003750e-9, -0.1200000000000000001800000188712838420241e-29),
+                Complex64::new(5.00000000000000000000025000000000000000000003e-12, -1.20000000000000000000018000000000000000000004e-36),
+                Complex64::new(5.00000000000000000000000002500000000000000000e-14, -1.20000000000000000000000001800000000000000000e-42),
+                Complex64::new(5.0e-301, 0.0) 
+            ];
+
+            let tolerance = 1.0e-13;
+            for n in 0..z.len() {
+                let computed_dawson = dawson_with_relerror(z[n], 0.);
+                let relative_error_re = relerr(computed_dawson.re, expected_dawson[n].re);
+                let relative_error_im = relerr(computed_dawson.im, expected_dawson[n].im);
+                assert!(relative_error_re < tolerance);
+                assert!(relative_error_im < tolerance);
+            }
+        }
+
+
+
+
+
+        #[test]
+        fn test_dawson_real() {
+            let tolerance = 1.0e-13;
+            for i in 0..10000 {
+                let x = 10.0_f64.powf(-300.0 + i as f64 * 600.0 / (10000.0 - 1.0));
+                let computed_dawson = x.dawson();
+                let expected_dawson = dawson_with_relerror(Complex64::new(x, x*1.0e-20), 0.0).re;
+                let relative_error = relerr(computed_dawson, expected_dawson);
+                if relative_error >= tolerance {
+                    println!("i: {},  x={},  computed y: {},  expected y: {}", i, x, computed_dawson, expected_dawson);
+                }
+                assert!(relative_error < tolerance);
+
+                let computed_dawson = (-x).dawson();
+                let expected_dawson = dawson_with_relerror(Complex64::new(-x, x*1.0e-20), 0.0).re;
+                let relative_error = relerr(computed_dawson, expected_dawson);
+                if relative_error >= tolerance {
+                    println!("i: {},  x={},  computed y: {},  expected y: {}", i, x, computed_dawson, expected_dawson);
+                }
+                assert!(relative_error < tolerance);
+            }
+
+            let x = f64::INFINITY;
+            let computed_dawson = x.dawson();
+            let expected_dawson = dawson_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_dawson, expected_dawson);
+            if relative_error >= tolerance {
+                println!("x={},  computed y: {},  expected y: {}", x, computed_dawson, expected_dawson);
+            }
+            assert!(relative_error < tolerance);
+
+            let x = f64::NEG_INFINITY;
+            let computed_dawson = x.dawson();
+            let expected_dawson = dawson_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_dawson, expected_dawson);
+            if relative_error >= tolerance {
+                println!("x={},  computed y: {},  expected y: {}", x, computed_dawson, expected_dawson);
+            }
+            assert!(relative_error < tolerance);
+
+            let x = f64::NAN;
+            let computed_dawson = x.dawson();
+            let expected_dawson = dawson_with_relerror(Complex64::new(x, 0.0), 0.0).re;
+            let relative_error = relerr(computed_dawson, expected_dawson);
+            if relative_error >= tolerance {
+                println!("x={},  computed y: {},  expected y: {}", x, computed_dawson, expected_dawson);
+            }
+            assert!(relative_error < tolerance);
         }
 
     } // end module tests
 
 
 } // end module faddeeva
+
 
 
 
