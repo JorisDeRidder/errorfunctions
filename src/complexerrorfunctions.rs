@@ -1,5 +1,6 @@
 
 use num::complex::Complex;
+
 use std::f64::consts::PI;
 use crate::realerrorfunctions::RealErrorFunctions;
 use crate::auxilliary::*;
@@ -7,7 +8,7 @@ use crate::auxilliary::*;
 type Complex64 = Complex<f64>;
 
 
-/// The Faddeeva function
+// The Faddeeva function
 
 pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
     if z.re == 0.0 {
@@ -336,7 +337,7 @@ pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
 
 
 
-/// The complex scaled complementary error function
+// The complex scaled complementary error function
 
 pub fn erfcx_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     w_with_relerror(Complex64::new(-z.im, z.re), relerr)
@@ -348,7 +349,7 @@ pub fn erfcx_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 
 
-/// The complex error functions
+// The complex error function
 
 pub fn erf_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     let x = z.re;
@@ -471,7 +472,7 @@ pub fn erf_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 
 
-/// The imaginary error function
+// The imaginary error function
 
 pub fn erfi_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     let e: Complex64 = erf_with_relerror(Complex64::new(-z.im, z.re), relerr);
@@ -482,7 +483,7 @@ pub fn erfi_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 
 
-/// The complex complementary error function
+// The complex complementary error function
 
 pub fn erfc_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     let x: f64 = z.re;
@@ -542,7 +543,7 @@ pub fn erfc_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 
 
-/// Dawson's function 
+// Dawson's function 
 
 pub fn dawson_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     const SPI2: f64 = 0.8862269254527580136490837416705725913990; // sqrt(pi)/2
@@ -1235,7 +1236,6 @@ mod tests {
             assert!(relative_error_im < tolerance);
         }
     }
-
 
 } 
 

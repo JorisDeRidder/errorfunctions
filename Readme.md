@@ -98,7 +98,7 @@ println!("w(z)      = {}",      w_with_relerror(z, relerror));
 println!("dawson(z) = {}", dawson_with_relerror(z, relerror));
 }
 ```
-
+Setting `relerror=0.0` returns machine precision.
 
 ## Tests
 

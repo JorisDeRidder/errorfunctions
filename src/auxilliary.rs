@@ -69,8 +69,8 @@ pub fn sqr(x: f64) -> f64 {
 
 
 
-// Precomputed table of expa2n2[n-1] = exp(-a2*n*n) for double-precision a2 = 0.26865... in w  below.
-// The last element is 0.0 to prevent underflow, and also to prevent reading past the array end, see  below.
+// Precomputed table of expa2n2[n-1] = exp(-a2*n*n) for double-precision a2 = 0.26865... in w() below.
+// The last element is 0.0 to prevent underflow, and also to prevent reading past the array end, see below.
 pub static EXPA2N2: [f64; 52] = [
     7.64405281671221563e-01, 3.41424527166548425e-01, 8.91072646929412548e-02, 1.35887299055460086e-02, 1.21085455253437481e-03,
     6.30452613933449404e-05, 1.91805156577114683e-06, 3.40969447714832381e-08, 3.54175089099469393e-10, 2.14965079583260682e-12,

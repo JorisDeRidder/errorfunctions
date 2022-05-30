@@ -2,8 +2,6 @@
 use crate::auxilliary::*;
 
 
-
-
 pub trait RealErrorFunctions {
     fn erfcx(self) -> Self;
     fn erf(self) -> Self;
@@ -12,7 +10,6 @@ pub trait RealErrorFunctions {
     fn erfc(self) -> Self;
     fn dawson(self) -> Self;
 }
-
 
 
 impl RealErrorFunctions for f64 {
@@ -70,8 +67,7 @@ impl RealErrorFunctions for f64 {
 
 
 
-    /// Some comment
-    ///
+    // The error functions
     fn erf(self) -> Self {
         let mx2 = -self * self;
         if mx2 < -750.0 {
@@ -104,12 +100,12 @@ impl RealErrorFunctions for f64 {
 
 
 
-    /// Compute a scaled Dawson integral
-    ///        w_im(x) = 2*Dawson(x)/sqrt(pi)
-    /// equivalent to the imaginary part w(x) for real x.
-    /// Uses methods similar to the erfcx calculation above: continued fractions for large |x|,
-    /// a lookup table of Chebyshev polynomials for smaller |x|, and finally a Taylor expansion for |x|<0.01.
-    ///
+    // Compute a scaled Dawson integral
+    //        w_im(x) = 2*Dawson(x)/sqrt(pi)
+    // equivalent to the imaginary part w(x) for real x.
+    // Uses methods similar to the erfcx calculation above: continued fractions for large |x|,
+    // a lookup table of Chebyshev polynomials for smaller |x|, and finally a Taylor expansion for |x|<0.01.
+    //
     fn w_im(self) -> Self {
         if self >= 0.0 {
             if self > 45.0 {
@@ -153,8 +149,8 @@ impl RealErrorFunctions for f64 {
 
 
 
-    /// Compute erfi(x) = -i erf(ix)
-    ///
+    // The imaginary error function erfi(x) = -i erf(ix)
+    
     fn erfi(self) -> Self {
         if self * self > 720.0 {
             if self > 0.0 {
@@ -169,8 +165,8 @@ impl RealErrorFunctions for f64 {
 
 
 
-    /// Compute erfc(x) = 1 - erf(x)
-    ///
+    // The complementary error function erfc(x) = 1 - erf(x)
+    
     fn erfc(self) -> Self {
         if self * self > 750.0 {                                                // underflow
             if self >= 0.0 {
@@ -189,8 +185,8 @@ impl RealErrorFunctions for f64 {
 
 
 
-    /// Compute Dawson(x) = sqrt(pi)/2  *  exp(-x^2) * erfi(x)
-    ///
+    // Dawson's function Dawson(x) = sqrt(pi)/2  *  exp(-x^2) * erfi(x)
+    
     fn dawson(self) -> Self {
         const SPI2: f64 = 0.8862269254527580136490837416705725913990;           // sqrt(pi)/2
         return SPI2 * self.w_im();
