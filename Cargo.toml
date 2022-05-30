@@ -1,12 +1,13 @@
 [package]
-name = "faddeeva"
+name = "errorfunctions"
 version = "0.1.0"
-edition = "2018"
-
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+edition = "2021"
 
 [dependencies]
 
 num = "0.4"
 num-traits = "0.2"
+
+[package.metadata.docs.rs]
+rustdoc-args = [ "--html-in-header", "./src/html/docs-header.html" ]
+
