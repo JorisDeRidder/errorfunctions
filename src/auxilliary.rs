@@ -14,29 +14,31 @@ pub trait ExpAllowingForNanAndInf {
 impl<T: Float> ExpAllowingForNanAndInf for Complex<T> {
 
     fn cexp(self) -> Self {
+        // formula: e^(a + bi) = e^a (cos(b) + i*sin(b)) = from_polar(e^a, b)
 
+        let Complex { re, mut im } = self;
         // Treat the corner cases +∞, -∞, and NaN
-        let mut im = self.im;
-        if self.re.is_infinite() {
-            if self.re < T::zero() {
-                if !self.im.is_finite() {
-                    im = T::one();
+        if re.is_infinite() {
+            if re < T::zero() {
+                if !im.is_finite() {
+                    return Self::new(T::zero(), T::zero()); 
                 }
             } else {
-                if self.im == T::zero() || !self.im.is_finite() {
-                    if self.im.is_infinite() {
+                if im == T::zero() || !im.is_finite() {
+                    if im.is_infinite() {
                         im = T::nan();
                     }
-                    return Self::new(self.re, im);
+                    return Self::new(re, im);
                 }
             }
-        } else if self.re.is_nan() && self.im == T::zero() {
-            return self;
+        } else if re.is_nan() && im == T::zero() {
+            return self
         }
 
         let a = self.re.exp();
         Self::new(a * im.cos(), a * im.sin())
     }
+
 }
 
 

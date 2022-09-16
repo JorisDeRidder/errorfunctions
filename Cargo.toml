@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 
 num = "0.4"
+
 num-traits = "0.2"
 
 [package.metadata.docs.rs]
