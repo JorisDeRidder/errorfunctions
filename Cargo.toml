@@ -1,8 +1,13 @@
 [package]
 name = "errorfunctions"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
+authors = ["Joris De Ridder"]
 description = "Pure Rust package to compute the error function, Dawson's function, and Faddeeva's function for real and complex arguments."
+keywords = ["error function", "Dawson", "Faddeeva"]
+categories = ["mathematics"]
+readme = "Readme.md"
+repository = "https://github.com/JorisDeRidder/errorfunctions"
 license = "MIT"
 
 [dependencies]

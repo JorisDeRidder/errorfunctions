@@ -100,6 +100,18 @@ println!("dawson(z) = {}", dawson_with_relerror(z, relerror));
 ```
 Setting `relerror=0.0` returns machine precision.
 
+
+## Toml file
+
+Include the following lines in your Cargo.toml file:
+
+```md
+[dependencies]
+num = "0.4.0"
+errorfunctions = "*"
+```
+where `*` is the latest version of this `errorfunctions` package.
+
 ## Tests
 
 The extenstive set of unit tests in the original [Faddeeva code](http://ab-initio.mit.edu/wiki/index.php/Faddeeva_Package) 
