@@ -32,7 +32,7 @@ $$ {\rm w}\\_{\rm im}(x) = {\rm Im}({\rm w}(x)) = e^{-x^2} {\rm erfi}(x) $$
 The implementation of this crate is a port of Steven G. Johnson's 
 [Faddeeva](http://ab-initio.mit.edu/wiki/index.php/Faddeeva_Package) C/C++ library in Rust. 
 The functions are computed in an efficient way up to machine precision for `Complex<f64>` or `f64` arguments. 
-The functions handle NaN's and (positive and negative) infinities as arguments correctly.
+The functions handle NaN and infinite (positive and negative) arguments correctly.
 
 
 
@@ -102,13 +102,14 @@ Setting `relerror=0.0` returns machine precision.
 
 ## Tests
 
-The extenstive set of unit tests in the [Faddeeva](http://ab-initio.mit.edu/wiki/index.php/Faddeeva_Package) 
-code was also ported to Rust and is included in this crate.
+The extenstive set of unit tests in the original [Faddeeva code](http://ab-initio.mit.edu/wiki/index.php/Faddeeva_Package) 
+was also ported to Rust and is included in this crate.
 
 
 ## Credits
 
-Since this is a close to literal translation in Rust of Steven G. Johnson's code, credit should go to him.
+Since this is a close to literal translation in Rust of [Steven G. Johnson's C++ code](http://ab-initio.mit.edu/wiki/index.php/Faddeeva_Package),
+credit should go to him.
 
 
 
