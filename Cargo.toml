@@ -13,7 +13,7 @@ license = "MIT"
 [dependencies]
 
 num = "0.4"
-num-traits = "0.2"
+num-complex = "0.4.2"
 
 [package.metadata.docs.rs]
 rustdoc-args = [ "--html-in-header", "./src/html/docs-header.html" ]

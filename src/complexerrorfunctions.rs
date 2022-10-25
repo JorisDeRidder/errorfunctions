@@ -117,7 +117,7 @@ pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
 
         if y < 0.0 {
             // use w(z) = 2.0*exp(-z*z) - w(-z), but be careful of overflow in exp(-z*z) = exp(-(xs*xs-ya*ya) -2*i*xs*ya)
-            return 2.0 * Complex64::new((ya - xs) * (xs + ya), 2.0 * xs * y).cexp() - ret;
+            return 2.0 * Complex64::new((ya - xs) * (xs + ya), 2.0 * xs * y).exp() - ret;
         } else {
             return ret;
         }
@@ -533,9 +533,9 @@ pub fn erfc_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     }
 
     if x >= 0.0 {
-        return Complex64::new(m_re_z2, m_im_z2).cexp() * w_with_relerror(Complex64::new(-y, x), relerr);
+        return Complex64::new(m_re_z2, m_im_z2).exp() * w_with_relerror(Complex64::new(-y, x), relerr);
     } else {
-        return 2.0 - Complex64::new(m_re_z2, m_im_z2).cexp() * w_with_relerror(Complex64::new(y, -x), relerr);
+        return 2.0 - Complex64::new(m_re_z2, m_im_z2).exp() * w_with_relerror(Complex64::new(y, -x), relerr);
     }
 }
 
@@ -647,7 +647,7 @@ pub fn dawson_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
                 }
             }
         }
-        let res: Complex64 = mz2.cexp() - w_with_relerror(z, relerr);
+        let res: Complex64 = mz2.exp() - w_with_relerror(z, relerr);
         return SPI2 * Complex64::new(-res.im, res.re);
     } else {
         // y < 0
@@ -708,7 +708,7 @@ pub fn dawson_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
                 return Complex64::new(f64::NAN, f64::NAN);
             }
         }
-        let res: Complex64 = w_with_relerror(-z, relerr) - mz2.cexp();
+        let res: Complex64 = w_with_relerror(-z, relerr) - mz2.exp();
         return SPI2 * Complex64::new(-res.im, res.re);
     }
 }

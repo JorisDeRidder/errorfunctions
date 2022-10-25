@@ -1,48 +1,5 @@
 
 
-use num_traits::Float;
-use num::complex::Complex;
-
-
-// At the time of this writing the complex exp() function in the num library is not able to take into acount
-// inf or nans in its argument. So make a custom function for this.
-
-pub trait ExpAllowingForNanAndInf {
-    fn cexp(self) -> Self;
-}
-
-impl<T: Float> ExpAllowingForNanAndInf for Complex<T> {
-
-    fn cexp(self) -> Self {
-        // formula: e^(a + bi) = e^a (cos(b) + i*sin(b)) = from_polar(e^a, b)
-
-        let Complex { re, mut im } = self;
-        // Treat the corner cases +∞, -∞, and NaN
-        if re.is_infinite() {
-            if re < T::zero() {
-                if !im.is_finite() {
-                    return Self::new(T::zero(), T::zero()); 
-                }
-            } else {
-                if im == T::zero() || !im.is_finite() {
-                    if im.is_infinite() {
-                        im = T::nan();
-                    }
-                    return Self::new(re, im);
-                }
-            }
-        } else if re.is_nan() && im == T::zero() {
-            return self
-        }
-
-        let a = self.re.exp();
-        Self::new(a * im.cos(), a * im.sin())
-    }
-
-}
-
-
-
 // Compute sinc(x) = sin(x)/x, given both x and sin(x)
 // (since we only use this in cases where sin(x) has already been computed)
 #[inline]
