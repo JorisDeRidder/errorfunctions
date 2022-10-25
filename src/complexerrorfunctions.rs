@@ -22,8 +22,8 @@ pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
     let c: f64;
     if relerr <= f64::EPSILON {
         relerr = f64::EPSILON;
-        a = 0.518321480430085929872; // pi / sqrt(-log(eps*0.5))
-        c = 0.329973702884629072537; // (2/pi) * a;
+        a = 0.518321480430085929872;  // pi / sqrt(-log(eps*0.5))
+        c = 0.329973702884629072537;  // (2/pi) * a;
         a2 = 0.268657157075235951582; // a^2
     } else {
         if relerr > 0.1 {
@@ -91,7 +91,7 @@ pub fn w_with_relerror(z: Complex64, mut relerr: f64) -> Complex64 {
                 ret = Complex64::new(denom * (xs * di - ya * dr), denom * (xs * dr + ya * di));
             }
         } else {
-            // compute nu(z) estimate and do general continUed fraction
+            // compute nu(z) estimate and do general continued fraction
             const C0: f64 = 3.9;
             const C1: f64 = 11.398;
             const C2: f64 = 0.08254;
