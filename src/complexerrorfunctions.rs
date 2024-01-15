@@ -351,6 +351,7 @@ pub fn erfcx_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 // The complex error function
 
+#[rustfmt::skip]
 pub fn erf_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     let x = z.re;
     let y = z.im;
@@ -545,6 +546,7 @@ pub fn erfc_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
 
 // Dawson's function 
 
+#[rustfmt::skip]
 pub fn dawson_with_relerror(z: Complex64, relerr: f64) -> Complex64 {
     const SPI2: f64 = 0.8862269254527580136490837416705725913990; // sqrt(pi)/2
     let x = z.re;
@@ -764,6 +766,7 @@ impl ComplexErrorFunctions for Complex64 {
 
 
 #[cfg(test)]
+// #[rustfmt::skip]
 mod tests {
 
     use super::*;

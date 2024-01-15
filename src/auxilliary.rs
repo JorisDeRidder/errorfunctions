@@ -30,6 +30,7 @@ pub fn sqr(x: f64) -> f64 {
 
 // Precomputed table of expa2n2[n-1] = exp(-a2*n*n) for double-precision a2 = 0.26865... in w() below.
 // The last element is 0.0 to prevent underflow, and also to prevent reading past the array end, see below.
+#[rustfmt::skip]
 pub static EXPA2N2: [f64; 52] = [
     7.64405281671221563e-01, 3.41424527166548425e-01, 8.91072646929412548e-02, 1.35887299055460086e-02, 1.21085455253437481e-03,
     6.30452613933449404e-05, 1.91805156577114683e-06, 3.40969447714832381e-08, 3.54175089099469393e-10, 2.14965079583260682e-12,
@@ -54,6 +55,7 @@ pub static EXPA2N2: [f64; 52] = [
 // generated with the help of Maple and a little shell script.   This allows the Chebyshev polynomials to be of
 // significantly lower degree (about 1/4) compared to fitting the whole [0,1] interval with a single polynomial.
 //
+#[rustfmt::skip]
 pub fn erfcx_y100(y100: f64) -> f64 {
     let y100_int = y100.floor() as i32;
     let t = 2.0 * y100 - (2 * y100_int + 1) as f64;
@@ -168,6 +170,7 @@ pub fn erfcx_y100(y100: f64) -> f64 {
 // generated with the help of Maple and a little shell script. This allows the Chebyshev polynomials to be of
 // significantly lower degree (about 1/30) compared to fitting the whole [0,1] interval with a single polynomial.
 //
+#[rustfmt::skip]
 pub fn w_im_y100(y100: f64, x: f64) -> f64 {
 
     let y100_int = y100.floor() as i32;
